@@ -8,7 +8,12 @@ class TimeHandler
   end
 
   def call(env)
-    handle_query(env['QUERY_STRING'])
+    if env['REQUEST_PATH'] == '/time'
+      handle_query(env['QUERY_STRING'])
+    else
+      @response_code = 404
+      @response_body = ["Request path #{env['REQUEST_PATH']} does not exists\n"]
+    end
 
     [
       @response_code,
