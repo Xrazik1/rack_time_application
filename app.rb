@@ -37,11 +37,7 @@ class TimeHandler
   def handle_time(params)
     converted = convert_time(params)
     time = Time.new
-    string_time = ''
-
-    converted.each_with_index do |converted_time, i|
-      string_time += (i + 1) == converted.length ? converted_time.to_s : "#{converted_time}-"
-    end
+    string_time = converted.join('-')
 
     @response_body = ["#{time.strftime(string_time)}\n"]
     @response_code = 200
