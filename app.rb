@@ -1,6 +1,6 @@
-require_relative 'time_formatter'
+class TimeHandler
+  VALID_TIME_KEYS = %w[year month day hour minute second].freeze
 
-class App
   def initialize
     @response_code = 200
     @response_headers = {'Content-type' => 'text/plain'}
@@ -8,10 +8,11 @@ class App
   end
 
   def call(env)
-    if valid_request_path? env['REQUEST_PATH']
+    if env['REQUEST_PATH'] == '/time'
       handle_query(env['QUERY_STRING'])
     else
-      handle_bad_request_path(env['REQUEST_PATH'])
+      @response_code = 404
+      @response_body = ["Request path #{env['REQUEST_PATH']} does not exists\n"]
     end
 
     [
@@ -21,28 +22,41 @@ class App
     ]
   end
 
-  def valid_request_path?(path)
-    path == '/time'
+  def valid_params?(params)
+    return false unless params.instance_of?(Array)
+
+    (params - VALID_TIME_KEYS).empty?
   end
 
   def handle_query(query)
     params = query.split('=').last.split('%2C')
 
-    if TimeFormatter.valid_keys?(params)
-      @response_code = 200
-      @response_body = ["#{TimeFormatter.new.time_in_format(params)}\n"]
-    else
-      handle_bad_format(params)
-    end
+    valid_params?(params) ? handle_time(params) : handle_bad_format(params)
   end
 
-  def handle_bad_request_path(path)
-    @response_code = 404
-    @response_body = ["Request path #{path} does not exists\n"]
+  def handle_time(params)
+    converted = convert_time(params)
+    time = Time.new
+    string_time = converted.join('-')
+
+    @response_body = ["#{time.strftime(string_time)}\n"]
+    @response_code = 200
   end
 
   def handle_bad_format(params)
     @response_code = 400
     @response_body = ["Unknown time format #{params}\n"]
+  end
+
+  def convert_time(params)
+    params.map do |time|
+      if %w[day month].include? time
+        "%#{time.split('').first}"
+      elsif %w[minute second year].include? time
+        "%#{time.split('').first.upcase}"
+      elsif time == 'hour'
+        '%I'
+      end
+    end
   end
 end
