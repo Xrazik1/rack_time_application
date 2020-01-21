@@ -19,10 +19,7 @@ class TimeFormatter
   def time_by_format
     raise 'Format parameters are in incorrect format' unless valid_format?
 
-    string_time = convert_time(@format_params)
-    time        = Time.new
-
-    time.strftime(string_time)
+    format_time(@format_params)
   end
 
   def unknown_format_params
@@ -39,8 +36,9 @@ class TimeFormatter
 
   private
 
-  def convert_time(params)
-    params.map { |time| TIME_FORMAT_KEYS[time] }.join('-')
+  def format_time(params)
+    string_keys = params.map { |time| TIME_FORMAT_KEYS[time] }.join('-')
+    Time.new.strftime(string_keys)
   end
 
 end
