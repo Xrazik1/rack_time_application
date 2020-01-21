@@ -1,48 +1,38 @@
+# frozen_string_literal: true
+
 require_relative 'time_formatter'
+require 'rack'
 
 class App
   def initialize
-    @response_code = 200
-    @response_headers = {'Content-type' => 'text/plain'}
-    @response_body = ''
+    @headers = { 'Content-type' => 'text/plain' }
   end
 
   def call(env)
     if valid_request_path? env['REQUEST_PATH']
       handle_query(env['QUERY_STRING'])
     else
-      handle_bad_request_path(env['REQUEST_PATH'])
+      response(404, "Request path #{env['REQUEST_PATH']} does not exists\n")
     end
+  end
 
-    [
-      @response_code,
-      @response_headers,
-      @response_body
-    ]
+  def handle_query(query)
+    params    = query.split('=').last.split('%2C')
+    formatter = TimeFormatter.new(params)
+    formatter.call
+
+    if formatter.valid_format?
+      response(200, formatter.time_by_format)
+    else
+      response(200, "Unknown time formats were found #{formatter.unknown_format_params}\n")
+    end
+  end
+
+  def response(status, body)
+    Rack::Response.new(body, status, @headers).finish
   end
 
   def valid_request_path?(path)
     path == '/time'
-  end
-
-  def handle_query(query)
-    params = query.split('=').last.split('%2C')
-
-    if TimeFormatter.valid_format?(params)
-      @response_code = 200
-      @response_body = ["#{TimeFormatter.new.time_by_format(params)}\n"]
-    else
-      handle_bad_format(params)
-    end
-  end
-
-  def handle_bad_request_path(path)
-    @response_code = 404
-    @response_body = ["Request path #{path} does not exists\n"]
-  end
-
-  def handle_bad_format(params)
-    @response_code = 400
-    @response_body = ["Unknown time format #{params}\n"]
   end
 end
