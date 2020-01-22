@@ -1,61 +1,38 @@
-class TimeHandler
-  VALID_TIME_KEYS = %w[year month day hour minute second].freeze
+# frozen_string_literal: true
 
+require_relative 'time_formatter'
+require 'rack'
+
+class App
   def initialize
-    @response_code = 200
-    @response_headers = {'Content-type' => 'text/plain'}
-    @response_body = ''
+    @headers = { 'Content-type' => 'text/plain' }
   end
 
   def call(env)
-    handle_query(env['QUERY_STRING'])
-
-    [
-      @response_code,
-      @response_headers,
-      @response_body
-    ]
-  end
-
-  def valid_params?(params)
-    return false unless params.instance_of?(Array)
-
-    (params - VALID_TIME_KEYS).empty?
+    if valid_request_path? env['REQUEST_PATH']
+      handle_query(env['QUERY_STRING'])
+    else
+      response(404, "Request path #{env['REQUEST_PATH']} does not exists\n")
+    end
   end
 
   def handle_query(query)
-    params = query.split('=').last.split('%2C')
+    params    = query.split('=').last.split('%2C')
+    formatter = TimeFormatter.new(params)
+    formatter.call
 
-    valid_params?(params) ? handle_time(params) : handle_bad_format(params)
-  end
-
-  def handle_time(params)
-    converted = convert_time(params)
-    time = Time.new
-    string_time = ''
-
-    converted.each_with_index do |converted_time, i|
-      string_time += (i + 1) == converted.length ? converted_time.to_s : "#{converted_time}-"
+    if formatter.valid_format?
+      response(200, formatter.time_by_format)
+    else
+      response(200, "Unknown time formats were found #{formatter.unknown_format_params}\n")
     end
-
-    @response_body = ["#{time.strftime(string_time)}\n"]
-    @response_code = 200
   end
 
-  def handle_bad_format(params)
-    @response_code = 400
-    @response_body = ["Unknown time format #{params}\n"]
+  def response(status, body)
+    Rack::Response.new(body, status, @headers).finish
   end
 
-  def convert_time(params)
-    params.map do |time|
-      if %w[day month].include? time
-        "%#{time.split('').first}"
-      elsif %w[minute second year].include? time
-        "%#{time.split('').first.upcase}"
-      elsif time == 'hour'
-        '%I'
-      end
-    end
+  def valid_request_path?(path)
+    path == '/time'
   end
 end
